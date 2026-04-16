@@ -1,8 +1,7 @@
 {
-  "buildCommand": "cd frontend && npm ci && npm run build",
+  "buildCommand": "bash build.sh",
   "outputDirectory": "frontend/dist",
   "framework": null,
-  "nodeVersion": "18.x",
   "routes": [
     {
       "src": "/api/(.*)",
