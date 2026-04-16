@@ -2,3 +2,5 @@ node_modules
 .git
 *.md
 docs
+frontend/node_modules
+backend
