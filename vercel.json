@@ -2,9 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "frontend/dist",
   "framework": null,
-  "env": {
-    "NEXT_PUBLIC_API_URL": "@nepse_api_url"
-  },
+  "installCommand": "npm ci",
   "routes": [
     {
       "src": "/api/(.*)",

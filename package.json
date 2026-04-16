@@ -3,7 +3,14 @@
   "version": "1.0.0",
   "description": "NEPSE Portfolio App",
   "private": true,
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
   "scripts": {
-    "build": "bash build.sh"
+    "build": "bash build.sh",
+    "start": "npm run build"
   }
 }

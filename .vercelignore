@@ -1,6 +1,7 @@
-node_modules
-.git
-*.md
-docs
+frontend/package.json
 frontend/node_modules
+frontend/.git
 backend
+docs
+*.md
+.git
