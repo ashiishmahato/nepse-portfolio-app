@@ -1,0 +1,9 @@
+{
+  "name": "nepse-portfolio-app",
+  "version": "1.0.0",
+  "description": "NEPSE Portfolio App",
+  "private": true,
+  "scripts": {
+    "build": "bash build.sh"
+  }
+}

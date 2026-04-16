@@ -1,8 +1,10 @@
 {
-  "buildCommand": "bash build.sh",
+  "buildCommand": "npm run build",
   "outputDirectory": "frontend/dist",
   "framework": null,
-  "builds": [],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "@nepse_api_url"
+  },
   "routes": [
     {
       "src": "/api/(.*)",
