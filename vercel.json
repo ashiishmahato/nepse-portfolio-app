@@ -2,19 +2,3 @@
   "buildCommand": "npm install --legacy-peer-deps && npm run build",
   "outputDirectory": "dist"
 }
-{
-  "buildCommand": "cd frontend && npm install --legacy-peer-deps && npm run build",
-  "outputDirectory": "frontend/dist",
-  "framework": "create-react-app",
-  "installCommand": "cd frontend && npm install --legacy-peer-deps",
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "backend/app/main.py"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "frontend/dist/$1"
-    }
-  ]
-}
