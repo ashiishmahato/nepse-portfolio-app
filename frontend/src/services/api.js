@@ -1,15 +1,6 @@
 import axios from 'axios'
 
-// Determine API URL based on environment
-const getApiUrl = () => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL + '/api/v1'
-  }
-  // Default to localhost for development
-  return 'http://localhost:8000/api/v1'
-}
-
-const API_BASE_URL = getApiUrl()
+const API_BASE_URL = 'http://localhost:8000/api/v1'
 
 const api = axios.create({
   baseURL: API_BASE_URL,

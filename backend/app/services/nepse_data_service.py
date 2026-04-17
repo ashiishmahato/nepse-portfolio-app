@@ -1,252 +1,109 @@
 """
-Service for fetching REAL live NEPSE stock prices
-Primary source: NepseClient (official NEPSE API wrapper)
-Fallback: nepseapi.surajrimal.dev
+Service for fetching real NEPSE data from Official NEPSE API
 """
 import logging
-import requests
+import asyncio
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# Try to import NepseClient service
-try:
-    from app.services.nepse_client_service import NepseClientService
-    NEPSE_CLIENT_AVAILABLE = True
-except ImportError:
-    NEPSE_CLIENT_AVAILABLE = False
-    logger.warning("NepseClient service not available")
-
 class NepseDataService:
-    """Service to fetch REAL live NEPSE data - prioritizing NepseClient"""
+    """Service to interact with official NEPSE API for real NEPSE data"""
     
+    # Timeout for API calls
     TIMEOUT = 30
     
-    @classmethod
-    def get_all_stocks(cls) -> List[Dict[str, Any]]:
+    @staticmethod
+    def get_all_stocks() -> List[Dict[str, Any]]:
         """
-        Fetch ALL real NEPSE stocks with LIVE prices
-        Uses NepseClient as primary source
+        Fetch all NEPSE stocks from the official NEPSE API
+        Returns all available companies listed on NEPSE with real data
         """
         try:
-            logger.info("Fetching REAL stocks from NEPSE...")
+            logger.info("Fetching stocks from official NEPSE API...")
             
-            # Try NepseClient first (most reliable)
-            if NEPSE_CLIENT_AVAILABLE:
-                stocks = NepseClientService.get_all_stocks()
-                if stocks:
-                    logger.info(f"✅ Fetched {len(stocks)} REAL stocks using NepseClient")
-                    return stocks
-                else:
-                    logger.warning("NepseClient returned no stocks, trying fallback...")
-            
-            # Fallback to old API
-            logger.warning("Using fallback API for stock data...")
-            return cls._get_stocks_fallback()
+            # Try to use official nepse-api library
+            try:
+                from nepse import SecurityClient
+                
+                async def fetch_stocks():
+                    client = SecurityClient()
+                    securities = await client.get_all_securities()
+                    return securities
+                
+                # Run async function in sync context
+                import nest_asyncio
+                nest_asyncio.apply()
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+                securities = loop.run_until_complete(fetch_stocks())
+                logger.info(f"Successfully fetched {len(securities)} securities from official API")
+                
+                # Convert to expected format
+                companies = []
+                for sec in securities:
+                    companies.append({
+                        'symbol': sec.symbol,
+                        'name': sec.name,
+                        'sector': getattr(sec, 'industry', 'Unknown'),
+                        'ltp': float(getattr(sec, 'ltp', 0) or 0)
+                    })
+                return companies
+                
+            except ImportError:
+                logger.warning("nepse-api not installed, falling back to requests API")
+                return NepseDataService._get_stocks_from_requests()
                 
         except Exception as e:
-            logger.error(f"Error in get_all_stocks: {str(e)}")
-            return cls._get_stocks_fallback()
+            logger.error(f"Error fetching from official API: {str(e)}")
+            logger.info("Falling back to requests-based API")
+            return NepseDataService._get_stocks_from_requests()
     
-    @classmethod
-    def _get_stocks_fallback(cls) -> List[Dict[str, Any]]:
-        """Fallback method if NepseClient is unavailable"""
+    @staticmethod
+    def _get_stocks_from_requests() -> List[Dict[str, Any]]:
+        """Fallback method using requests library"""
+        import requests
+        
         try:
-            logger.info("Using fallback API: nepseapi.surajrimal.dev...")
+            # Try primary endpoint first
             url = "https://nepseapi.surajrimal.dev/CompanyList"
-            response = requests.get(url, timeout=cls.TIMEOUT)
+            response = requests.get(url, timeout=NepseDataService.TIMEOUT)
             response.raise_for_status()
             
             data = response.json()
             companies = []
             
+            # Handle different response formats
             if isinstance(data, list):
                 companies = data
             elif isinstance(data, dict) and 'data' in data:
-                companies = data['data'] if isinstance(data['data'], list) else [data['data']]
+                companies = data['data']
             
             logger.info(f"Fetched {len(companies)} stocks from fallback API")
             return companies
             
         except Exception as e:
-            logger.error(f"Error with fallback API: {str(e)}")
+            logger.error(f"Error fetching stocks: {str(e)}")
             return []
     
     @classmethod
-    def get_price_volume(cls) -> Dict[str, Any]:
+    def get_price_volume(cls) -> Dict[str, Dict[str, Any]]:
         """
         Fetch price and volume data for all stocks
         """
         try:
-            if NEPSE_CLIENT_AVAILABLE:
-                price_vol = NepseClientService.get_price_volume()
-                if price_vol:
-                    logger.info(f"Fetched price/volume for {len(price_vol)} stocks from NepseClient")
-                    return price_vol
-            
-            # Fallback
-            url = "https://nepseapi.surajrimal.dev/PriceVolume"
-            response = requests.get(url, timeout=cls.TIMEOUT)
+            url = f"{cls.BASE_URL}/PriceVolume"
+            response = requests.get(url, headers=cls.get_headers(), timeout=cls.TIMEOUT)
             response.raise_for_status()
-            return response.json()
-                
+            
+            data = response.json()
+            logger.info(f"Fetched price/volume data for {len(data)} stocks")
+            return data
         except Exception as e:
             logger.error(f"Error fetching price volume data: {str(e)}")
             return {}
-    
-    @classmethod
-    def get_live_market(cls) -> Dict[str, Any]:
-        """
-        Fetch live market data
-        """
-        try:
-            url = "https://nepseapi.surajrimal.dev/LiveMarket"
-            response = requests.get(url, timeout=cls.TIMEOUT)
-            response.raise_for_status()
-            
-            data = response.json()
-            return data
-        except Exception as e:
-            logger.error(f"Error fetching live market data: {str(e)}")
-            return {}
-    
-    @classmethod
-    def get_market_summary(cls) -> Optional[Dict[str, Any]]:
-        """
-        Fetch market summary
-        """
-        try:
-            if NEPSE_CLIENT_AVAILABLE:
-                summary = NepseClientService.get_market_summary()
-                if summary:
-                    logger.info("Got market summary from NepseClient")
-                    return summary
-            
-            # Fallback
-            url = "https://nepseapi.surajrimal.dev/Summary"
-            response = requests.get(url, timeout=cls.TIMEOUT)
-            response.raise_for_status()
-            
-            data = response.json()
-            return data
-        except Exception as e:
-            logger.error(f"Error fetching market summary: {str(e)}")
-            return None
-    
-    @classmethod
-    def get_top_gainers(cls, limit: int = 10) -> List[Dict[str, Any]]:
-        """
-        Fetch top gaining stocks
-        """
-        try:
-            if NEPSE_CLIENT_AVAILABLE:
-                gainers = NepseClientService.get_top_gainers(limit)
-                if gainers:
-                    logger.info(f"Got top {len(gainers)} gainers from NepseClient")
-                    return gainers
-            
-            # Fallback
-            url = "https://nepseapi.surajrimal.dev/TopGainers"
-            response = requests.get(url, timeout=cls.TIMEOUT)
-            response.raise_for_status()
-            
-            gainers = response.json()
-            return gainers[:limit]
-        except Exception as e:
-            logger.error(f"Error fetching top gainers: {str(e)}")
-            return []
-    
-    @classmethod
-    def get_top_losers(cls, limit: int = 10) -> List[Dict[str, Any]]:
-        """
-        Fetch top losing stocks
-        """
-        try:
-            if NEPSE_CLIENT_AVAILABLE:
-                losers = NepseClientService.get_top_losers(limit)
-                if losers:
-                    logger.info(f"Got top {len(losers)} losers from NepseClient")
-                    return losers
-            
-            # Fallback
-            url = "https://nepseapi.surajrimal.dev/TopLosers"
-            response = requests.get(url, timeout=cls.TIMEOUT)
-            response.raise_for_status()
-            
-            losers = response.json()
-            return losers[:limit]
-        except Exception as e:
-            logger.error(f"Error fetching top losers: {str(e)}")
-            return []
-                
-        except Exception as e:
-            logger.error(f"Error fetching price volume data: {str(e)}")
-            return {}
-    
-    @classmethod
-    def get_live_market(cls) -> Dict[str, Any]:
-        """
-        Fetch live market data
-        """
-        try:
-            url = "https://nepseapi.surajrimal.dev/LiveMarket"
-            response = requests.get(url, timeout=cls.TIMEOUT)
-            response.raise_for_status()
-            
-            data = response.json()
-            return data
-        except Exception as e:
-            logger.error(f"Error fetching live market data: {str(e)}")
-            return {}
-    
-    @classmethod
-    def get_market_summary(cls) -> Optional[Dict[str, Any]]:
-        """
-        Fetch market summary
-        """
-        try:
-            url = "https://nepseapi.surajrimal.dev/Summary"
-            response = requests.get(url, timeout=cls.TIMEOUT)
-            response.raise_for_status()
-            
-            data = response.json()
-            return data
-        except Exception as e:
-            logger.error(f"Error fetching market summary: {str(e)}")
-            return None
-    
-    @classmethod
-    def get_top_gainers(cls, limit: int = 10) -> List[Dict[str, Any]]:
-        """
-        Fetch top gaining stocks
-        """
-        try:
-            url = "https://nepseapi.surajrimal.dev/TopGainers"
-            response = requests.get(url, timeout=cls.TIMEOUT)
-            response.raise_for_status()
-            
-            gainers = response.json()
-            return gainers[:limit]
-        except Exception as e:
-            logger.error(f"Error fetching top gainers: {str(e)}")
-            return []
-    
-    @classmethod
-    def get_top_losers(cls, limit: int = 10) -> List[Dict[str, Any]]:
-        """
-        Fetch top losing stocks
-        """
-        try:
-            url = "https://nepseapi.surajrimal.dev/TopLosers"
-            response = requests.get(url, timeout=cls.TIMEOUT)
-            response.raise_for_status()
-            
-            losers = response.json()
-            return losers[:limit]
-        except Exception as e:
-            logger.error(f"Error fetching top losers: {str(e)}")
-            return []
     
     @classmethod
     def get_live_market(cls) -> Dict[str, Any]:

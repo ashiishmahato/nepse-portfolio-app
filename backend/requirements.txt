@@ -14,10 +14,3 @@ aiohttp
 email-validator
 nepse-api
 nest-asyncio
-beautifulsoup4
-lxml
-selenium
-webdriver-manager
-nepse-client
-gunicorn
-python-telegram-bot

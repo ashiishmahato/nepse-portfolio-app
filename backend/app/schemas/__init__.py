@@ -55,16 +55,14 @@ class PortfolioCreate(BaseModel):
     buy_price: float = Field(gt=0, description="Buy price must be positive")
     quantity: int = Field(gt=0, description="Quantity must be positive")
     target_profit_percentage: float = Field(gt=0, description="Target profit % must be positive")
-    stop_loss_percentage: Optional[float] = Field(default=None, ge=0, le=100, description="Stop loss % (0 = none, 0-100)")
-    purchase_date: Optional[datetime] = Field(default=None, description="Purchase date (optional)")
+    stop_loss_percentage: Optional[float] = Field(default=None, gt=0, lt=100)
     notes: Optional[str] = None
 
 
 class PortfolioUpdate(BaseModel):
     """Schema for updating portfolio entry"""
-    target_profit_percentage: Optional[float] = Field(default=None, gt=0, description="Target profit % must be positive")
-    stop_loss_percentage: Optional[float] = Field(default=None, ge=0, le=100, description="Stop loss % (0 = none, 0-100)")
-    purchase_date: Optional[datetime] = None
+    target_profit_percentage: Optional[float] = None
+    stop_loss_percentage: Optional[float] = None
     notes: Optional[str] = None
 
 

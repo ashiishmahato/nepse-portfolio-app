@@ -1,7 +1,6 @@
 """
 API routes for portfolio management
 """
-import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -10,7 +9,6 @@ from app.models import Portfolio, Stock
 from app.services.stock_service import PortfolioService, StockService, AlertService
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
 
@@ -27,7 +25,6 @@ def add_to_portfolio(
     - **quantity**: Number of shares
     - **target_profit_percentage**: Target profit % (e.g., 15)
     - **stop_loss_percentage**: Optional stop loss %
-    - **purchase_date**: Optional purchase date (e.g., 2024-08-05)
     """
     # Verify stock exists
     stock = db.query(Stock).filter(Stock.symbol == portfolio.stock_symbol).first()
@@ -37,18 +34,14 @@ def add_to_portfolio(
     # Create portfolio entry
     total_invested = portfolio.buy_price * portfolio.quantity
     
-    # Convert 0 stop loss to None (no stop loss)
-    stop_loss = portfolio.stop_loss_percentage if portfolio.stop_loss_percentage and portfolio.stop_loss_percentage > 0 else None
-    
     db_portfolio = Portfolio(
         stock_symbol=portfolio.stock_symbol,
         buy_price=portfolio.buy_price,
         quantity=portfolio.quantity,
         target_profit_percentage=portfolio.target_profit_percentage,
-        stop_loss_percentage=stop_loss,
+        stop_loss_percentage=portfolio.stop_loss_percentage,
         total_invested=total_invested,
         current_value=stock.current_price * portfolio.quantity,
-        purchase_date=portfolio.purchase_date or datetime.utcnow(),
         notes=portfolio.notes,
     )
     
@@ -108,11 +101,7 @@ def update_portfolio(
         item.target_profit_percentage = portfolio_update.target_profit_percentage
     
     if portfolio_update.stop_loss_percentage is not None:
-        # Convert 0 to None (no stop loss)
-        item.stop_loss_percentage = portfolio_update.stop_loss_percentage if portfolio_update.stop_loss_percentage > 0 else None
-    
-    if portfolio_update.purchase_date is not None:
-        item.purchase_date = portfolio_update.purchase_date
+        item.stop_loss_percentage = portfolio_update.stop_loss_percentage
     
     if portfolio_update.notes is not None:
         item.notes = portfolio_update.notes
@@ -150,48 +139,20 @@ def remove_from_portfolio(
 @router.get("/dashboard/summary", response_model=DashboardSummary)
 def get_dashboard(db: Session = Depends(get_db)):
     """Get dashboard summary with portfolio and alert information"""
-    try:
-        # Update portfolio values
-        PortfolioService.update_portfolio_values(db)
-        
-        # Get summary
-        summary = PortfolioService.get_dashboard_summary(db)
-        
-        # Get portfolio items
-        portfolio_items = db.query(Portfolio).filter(Portfolio.is_sold == 0).all()
-        
-        # Get recent alerts
-        from app.models import Alert
-        recent_alerts = db.query(Alert).filter(Alert.is_active == 1).order_by(Alert.created_at.desc()).limit(10).all()
-        
-        # Convert to dictionaries for proper serialization
-        summary["portfolio_items"] = [
-            {
-                "id": item.id,
-                "stock_symbol": item.stock_symbol,
-                "quantity": item.quantity,
-                "buy_price": item.buy_price,
-                "total_invested": item.total_invested,
-                "current_value": item.current_value,
-                "profit_loss": item.profit_loss,
-                "profit_loss_percentage": item.profit_loss_percentage,
-            }
-            for item in portfolio_items
-        ]
-        
-        summary["recent_alerts"] = [
-            {
-                "id": alert.id,
-                "stock_symbol": alert.stock_symbol,
-                "alert_type": alert.alert_type,
-                "trigger_price": alert.trigger_price,
-                "is_active": alert.is_active,
-                "created_at": alert.created_at.isoformat() if alert.created_at else None,
-            }
-            for alert in recent_alerts
-        ]
-        
-        return summary
-    except Exception as e:
-        logger.error(f"Error fetching dashboard: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    # Update portfolio values
+    PortfolioService.update_portfolio_values(db)
+    
+    # Get summary
+    summary = PortfolioService.get_dashboard_summary(db)
+    
+    # Get portfolio items
+    portfolio_items = db.query(Portfolio).filter(Portfolio.is_sold == 0).all()
+    
+    # Get recent alerts
+    from app.models import Alert
+    recent_alerts = db.query(Alert).filter(Alert.is_active == 1).order_by(Alert.created_at.desc()).limit(10).all()
+    
+    summary["portfolio_items"] = portfolio_items
+    summary["recent_alerts"] = recent_alerts
+    
+    return summary

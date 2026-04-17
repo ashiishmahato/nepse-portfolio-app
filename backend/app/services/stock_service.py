@@ -4,12 +4,8 @@ Services for stock data and price management
 from sqlalchemy.orm import Session
 from app.models import Stock, Portfolio, PriceHistory, Alert
 from app.services.technical_analysis import TechnicalAnalysisService
-from app.services.notifications import TelegramNotificationService
-from app.config import get_settings
 from datetime import datetime, timedelta
 import random
-
-settings = get_settings()
 
 
 class StockService:
@@ -150,28 +146,12 @@ class AlertService:
         """Generate alerts based on portfolio and technical conditions"""
         portfolio_items = db.query(Portfolio).filter(Portfolio.is_sold == 0).all()
         
-        # Initialize Telegram service if configured
-        telegram_service = None
-        if settings.TELEGRAM_BOT_TOKEN and settings.TELEGRAM_CHAT_ID:
-            telegram_service = TelegramNotificationService(
-                settings.TELEGRAM_BOT_TOKEN,
-                settings.TELEGRAM_CHAT_ID
-            )
-        
         for item in portfolio_items:
             stock = db.query(Stock).filter(Stock.symbol == item.stock_symbol).first()
             if not stock:
                 continue
             
             current_price = stock.current_price
-            
-            # Calculate current profit/loss
-            current_value = current_price * item.quantity
-            profit_loss = current_value - item.total_invested
-            profit_loss_pct = (profit_loss / item.total_invested * 100) if item.total_invested > 0 else 0
-            
-            # Calculate days held
-            days_held = (datetime.utcnow() - item.purchase_date).days
             
             # Profit target alert
             target_price = item.buy_price * (1 + item.target_profit_percentage / 100)
@@ -194,31 +174,6 @@ class AlertService:
                         is_active=1
                     )
                     db.add(alert)
-                    db.flush()
-                    
-                    # Send Telegram notification with detailed info
-                    if telegram_service:
-                        message = f"""
-<b>🎯 SELL TARGET REACHED!</b>
-
-<b>Stock:</b> {item.stock_symbol}
-<b>Quantity:</b> {item.quantity} shares
-<b>Buy Price:</b> NPR {item.buy_price:.2f}
-<b>Current Price:</b> NPR {current_price:.2f}
-<b>Target Price:</b> NPR {target_price:.2f}
-
-<b>💰 PROFIT DETAILS:</b>
-💵 Total Invested: NPR {item.total_invested:.2f}
-📊 Current Value: NPR {current_value:.2f}
-✅ Profit: NPR {profit_loss:.2f}
-📈 Gain: <b>{profit_loss_pct:.2f}%</b>
-📅 Days Held: {days_held} days
-
-<b>🎯 Target Profit:</b> {item.target_profit_percentage}%
-
-📲 Consider selling to lock in profits!
-"""
-                        telegram_service.send_alert(message)
             
             # Buy dip alert
             if stock.recent_high:
@@ -241,28 +196,6 @@ class AlertService:
                             is_active=1
                         )
                         db.add(alert)
-                        db.flush()
-                        
-                        # Send Telegram notification with detailed info
-                        if telegram_service:
-                            message = f"""
-<b>💰 BUY DIP OPPORTUNITY!</b>
-
-<b>Stock:</b> {item.stock_symbol}
-<b>Current Price:</b> NPR {current_price:.2f}
-<b>Recent High:</b> NPR {stock.recent_high:.2f}
-<b>Discount:</b> {((stock.recent_high - current_price) / stock.recent_high * 100):.1f}%
-
-<b>📊 YOUR POSITION:</b>
-💵 Total Invested: NPR {item.total_invested:.2f}
-📊 Current Value: NPR {current_value:.2f}
-{'✅ Profit: NPR ' + f'{profit_loss:.2f}' if profit_loss >= 0 else '❌ Loss: NPR ' + f'{abs(profit_loss):.2f}'}
-📈 Return: <b>{profit_loss_pct:.2f}%</b>
-📅 Days Held: {days_held} days
-
-📲 Great buying opportunity detected!
-"""
-                            telegram_service.send_alert(message)
             
             # Stop loss alert
             if item.stop_loss_percentage:
@@ -285,29 +218,6 @@ class AlertService:
                             is_active=1
                         )
                         db.add(alert)
-                        db.flush()
-                        
-                        # Send Telegram notification with detailed info
-                        if telegram_service:
-                            message = f"""
-<b>⛔ STOP LOSS TRIGGERED!</b>
-
-<b>Stock:</b> {item.stock_symbol}
-<b>Quantity:</b> {item.quantity} shares
-<b>Buy Price:</b> NPR {item.buy_price:.2f}
-<b>Current Price:</b> NPR {current_price:.2f}
-<b>Stop Loss Price:</b> NPR {stop_loss_price:.2f}
-
-<b>❌ LOSS DETAILS:</b>
-💵 Total Invested: NPR {item.total_invested:.2f}
-📊 Current Value: NPR {current_value:.2f}
-❌ Loss: NPR {abs(profit_loss):.2f}
-📉 Loss %: <b>{abs(profit_loss_pct):.2f}%</b>
-📅 Days Held: {days_held} days
-
-🚨 Please review your position immediately!
-"""
-                            telegram_service.send_alert(message)
             
             # RSI signals
             if stock.rsi:
@@ -329,28 +239,6 @@ class AlertService:
                             is_active=1
                         )
                         db.add(alert)
-                        db.flush()
-                        
-                        # Send Telegram notification with detailed info
-                        if telegram_service:
-                            message = f"""
-<b>📊 RSI OVERBOUGHT SIGNAL!</b>
-
-<b>Stock:</b> {item.stock_symbol}
-<b>RSI:</b> {stock.rsi:.1f} (Above 70 = Overbought)
-<b>Current Price:</b> NPR {current_price:.2f}
-
-<b>💰 YOUR POSITION:</b>
-💵 Total Invested: NPR {item.total_invested:.2f}
-📊 Current Value: NPR {current_value:.2f}
-{'✅ Profit: NPR ' + f'{profit_loss:.2f}' if profit_loss >= 0 else '❌ Loss: NPR ' + f'{abs(profit_loss):.2f}'}
-📈 Return: <b>{profit_loss_pct:.2f}%</b>
-📅 Days Held: {days_held} days
-🎯 Target: {item.target_profit_percentage}%
-
-⚠️ Stock appears overbought. Consider taking profits!
-"""
-                            telegram_service.send_alert(message)
         
         db.commit()
     

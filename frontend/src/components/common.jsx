@@ -147,7 +147,7 @@ export const StatCard = ({ label, value, unit = '', icon: Icon, color = 'primary
 /**
  * Portfolio Item Row Component
  */
-export const PortfolioItemRow = ({ item, onUpdate, onRemove, onDelete }) => {
+export const PortfolioItemRow = ({ item, onUpdate, onRemove }) => {
   const profitLoss = item.profit_loss || 0
   const profitLossColor = profitLoss >= 0 ? 'text-green-400' : 'text-red-400'
   
@@ -184,15 +184,9 @@ export const PortfolioItemRow = ({ item, onUpdate, onRemove, onDelete }) => {
           </button>
           <button
             onClick={onRemove}
-            className="px-3 py-1 bg-yellow-900/20 hover:bg-yellow-900/30 rounded text-sm text-yellow-300"
+            className="px-3 py-1 bg-red-900/20 hover:bg-red-900/30 rounded text-sm text-red-300"
           >
             Sell
-          </button>
-          <button
-            onClick={onDelete}
-            className="px-3 py-1 bg-red-900/20 hover:bg-red-900/30 rounded text-sm text-red-400"
-          >
-            Delete
           </button>
         </div>
       </div>

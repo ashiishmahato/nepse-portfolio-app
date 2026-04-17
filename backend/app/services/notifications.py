@@ -1,11 +1,7 @@
 """
 Notification service for sending alerts via email and Telegram
+Future implementation
 """
-import requests
-import logging
-
-logger = logging.getLogger(__name__)
-
 
 class EmailNotificationService:
     """Service for sending email alerts"""
@@ -33,23 +29,11 @@ class TelegramNotificationService:
     
     def send_alert(self, message):
         """Send Telegram alert"""
-        try:
-            url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
-            payload = {
-                "chat_id": self.chat_id,
-                "text": message,
-                "parse_mode": "HTML"
-            }
-            response = requests.post(url, json=payload, timeout=10)
-            if response.status_code == 200:
-                logger.info(f"Telegram notification sent successfully")
-                return True
-            else:
-                logger.error(f"Failed to send Telegram notification: {response.text}")
-                return False
-        except Exception as e:
-            logger.error(f"Error sending Telegram notification: {str(e)}")
-            return False
+        # TODO: Implement Telegram sending
+        # import requests
+        # url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+        # requests.post(url, json={"chat_id": self.chat_id, "text": message})
+        pass
 
 
 class NotificationManager:

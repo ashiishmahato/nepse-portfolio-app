@@ -7,10 +7,7 @@ from app.database import get_db
 from app.schemas import AlertResponse
 from app.models import Alert
 from app.services.stock_service import AlertService
-from app.services.notifications import TelegramNotificationService
-from app.config import get_settings
 
-settings = get_settings()
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
 
@@ -100,55 +97,3 @@ def trigger_alert_generation(db: Session = Depends(get_db)):
     AlertService.deactivate_expired_alerts(db)
     
     return {"message": "Alerts generated successfully"}
-
-
-@router.post("/test-telegram")
-def test_telegram_notification():
-    """
-    Test Telegram notification - sends a test message to verify bot is working
-    """
-    if not settings.TELEGRAM_BOT_TOKEN or not settings.TELEGRAM_CHAT_ID:
-        raise HTTPException(
-            status_code=400,
-            detail="Telegram credentials not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env"
-        )
-    
-    telegram_service = TelegramNotificationService(
-        settings.TELEGRAM_BOT_TOKEN,
-        settings.TELEGRAM_CHAT_ID
-    )
-    
-    test_message = """
-<b>✅ Test Notification - DETAILED FORMAT</b>
-
-Your NEPSE Alert Bot is working!
-
-<b>🎯 SELL TARGET REACHED!</b>
-
-<b>Stock:</b> ADBL
-<b>Quantity:</b> 10 shares
-<b>Buy Price:</b> NPR 378.91
-<b>Current Price:</b> NPR 435.75
-<b>Target Price:</b> NPR 435.76
-
-<b>💰 PROFIT DETAILS:</b>
-💵 Total Invested: NPR 3,789.10
-📊 Current Value: NPR 4,357.50
-✅ Profit: NPR 568.40
-📈 Gain: <b>15.00%</b>
-📅 Days Held: 45 days
-
-<b>🎯 Target Profit:</b> 15%
-
-📲 Consider selling to lock in profits!
-"""
-    
-    success = telegram_service.send_alert(test_message)
-    
-    if success:
-        return {"message": "Detailed test notification sent successfully! Check your Telegram.", "status": "success"}
-    else:
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to send test notification. Check your bot token and chat ID."
-        )

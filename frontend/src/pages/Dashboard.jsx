@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Layout, Header } from '../components/Layout'
 import { StatCard, LoadingSpinner, EmptyState, AlertBadge } from '../components/common'
-import { MarketStatus } from '../components/MarketStatus'
-import { portfolioAPI, alertsAPI } from '../services/api'
+import { portfolioAPI, alertsAPI, stocksAPI } from '../services/api'
 import { formatCurrency, formatNumber, formatDateTime } from '../utils/formatting'
 import { TrendingUp, AlertCircle, Briefcase } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -10,6 +9,7 @@ import toast from 'react-hot-toast'
 export const Dashboard = () => {
   const [dashboard, setDashboard] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [topStocks, setTopStocks] = useState([])
   
   useEffect(() => {
     loadDashboard()
@@ -22,6 +22,13 @@ export const Dashboard = () => {
     try {
       const dashboardRes = await portfolioAPI.getDashboard()
       setDashboard(dashboardRes.data)
+      
+      // Get top stocks by recommendation
+      const stocksRes = await stocksAPI.listAll()
+      const sorted = stocksRes.data
+        .sort((a, b) => b.analysis_score - a.analysis_score)
+        .slice(0, 5)
+      setTopStocks(sorted)
     } catch (error) {
       console.error('Error loading dashboard:', error)
       toast.error('Failed to load dashboard')
@@ -42,11 +49,6 @@ export const Dashboard = () => {
         title="Dashboard"
         subtitle="Your NEPSE investment overview"
       />
-      
-      {/* Market Status */}
-      <div className="mb-8">
-        <MarketStatus />
-      </div>
       
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -91,13 +93,13 @@ export const Dashboard = () => {
                   <div key={item.id} className="flex items-center justify-between p-3 bg-white/5 rounded">
                     <div className="flex-1">
                       <p className="font-semibold">{item.stock_symbol}</p>
-                      <p className="text-sm text-gray-400">{item.quantity} shares @ Rs. {formatNumber(item.buy_price)}</p>
+                      <p className="text-sm text-gray-400">{item.quantity} shares @ ${formatNumber(item.buy_price)}</p>
                     </div>
                     <div className="text-right">
                       <p className={`font-bold ${profitColor}`}>
                         {item.profit_loss >= 0 ? '+' : ''}{formatNumber(item.profit_loss_percentage, 2)}%
                       </p>
-                      <p className="text-sm text-gray-400">Rs. {formatNumber(item.current_value)}</p>
+                      <p className="text-sm text-gray-400">${formatNumber(item.current_value)}</p>
                     </div>
                   </div>
                 )
@@ -137,6 +139,33 @@ export const Dashboard = () => {
             <p className="text-gray-400 text-center py-8">No active alerts</p>
           )}
         </div>
+      </div>
+      
+      {/* Top Recommended Stocks */}
+      <div className="glass rounded-lg p-6">
+        <h2 className="text-xl font-bold mb-4">Top Recommended Stocks</h2>
+        
+        {topStocks.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {topStocks.map((stock) => (
+              <div key={stock.symbol} className="bg-white/5 rounded-lg p-4">
+                <p className="font-bold text-lg">{stock.symbol}</p>
+                <p className="text-2xl font-bold text-primary mb-2">${formatNumber(stock.current_price)}</p>
+                
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400">Score:</span>
+                  <span className="gradient-text font-bold">{formatNumber(stock.analysis_score, 1)}/4</span>
+                </div>
+                
+                <div className="mt-3 p-2 bg-primary/10 rounded text-center">
+                  <p className="text-xs text-primary font-semibold">{stock.analysis_recommendation}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-400 text-center py-8">No stocks available</p>
+        )}
       </div>
     </Layout>
   )
