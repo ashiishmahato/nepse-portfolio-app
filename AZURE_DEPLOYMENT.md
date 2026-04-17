@@ -67,8 +67,8 @@
 ### 2.2 Configure App Service
 1. Go to the App Service → **Settings** → **Configuration**
 2. Add Application settings:
-   - `TELEGRAM_BOT_TOKEN`: Your bot token (8519550594:AAGWOElqwgIWGPdX4w8AFaMKV8w54J_DGGs)
-   - `TELEGRAM_CHAT_ID`: Your chat ID (7540683688)
+   - `TELEGRAM_BOT_TOKEN`: Your bot token (get from BotFather on Telegram)
+   - `TELEGRAM_CHAT_ID`: Your chat ID (get from @userinfobot on Telegram)
    - `NEPSE_API_BASE`: https://www.nepseapi.surajrimal.dev
    - `ENVIRONMENT`: production
 3. Click **"Save"**
