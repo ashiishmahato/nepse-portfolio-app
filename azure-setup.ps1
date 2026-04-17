@@ -36,8 +36,8 @@ az webapp config appsettings set `
     --resource-group $resourceGroup `
     --name $backendAppName `
     --settings `
-    TELEGRAM_BOT_TOKEN="8519550594:AAGWOElqwgIWGPdX4w8AFaMKV8w54J_DGGs" `
-    TELEGRAM_CHAT_ID="7540683688" `
+    TELEGRAM_BOT_TOKEN="your-telegram-bot-token" `
+    TELEGRAM_CHAT_ID="your-chat-id" `
     NEPSE_API_BASE="https://www.nepseapi.surajrimal.dev" `
     ENVIRONMENT="production" `
     SCM_DO_BUILD_DURING_DEPLOYMENT="true"
