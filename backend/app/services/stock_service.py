@@ -146,6 +146,43 @@ class AlertService:
     """Service for managing and generating alerts"""
     
     @staticmethod
+    def prepare_alert_data(db: Session, stock, item=None):
+        """Prepare detailed alert data with price history and analysis"""
+        from app.services.notifications import format_price_change
+        
+        current_price = stock.current_price
+        
+        # Get price history for price change calculation
+        price_history = db.query(PriceHistory).filter(
+            PriceHistory.stock_symbol == stock.symbol
+        ).order_by(PriceHistory.date.desc()).limit(2).all()
+        
+        previous_price = price_history[1].close_price if len(price_history) > 1 else current_price
+        price_change_str = format_price_change(current_price, previous_price)
+        
+        # Prepare comprehensive alert data
+        alert_data = {
+            "stock_symbol": stock.symbol,
+            "current_price": current_price,
+            "trigger_price": 0,
+            "price_change": price_change_str,
+            "rsi": f"{stock.rsi:.2f}" if stock.rsi else "N/A",
+            "ma_50": f"{stock.ma_50:.2f}" if stock.ma_50 else "N/A",
+            "ma_200": f"{stock.ma_200:.2f}" if stock.ma_200 else "N/A",
+            "volume_trend": stock.volume_trend or "N/A",
+            "recommendation": stock.analysis_recommendation or "HOLD",
+            "analysis_score": f"{stock.analysis_score:.1f}" if stock.analysis_score else "N/A",
+            "high_52w": f"{stock.high_52w:.2f}" if stock.high_52w else "N/A",
+            "low_52w": f"{stock.low_52w:.2f}" if stock.low_52w else "N/A",
+            "recent_high": f"{stock.recent_high:.2f}" if stock.recent_high else "N/A",
+            "alert_type": "sell_target",
+            "title": "",
+            "description": ""
+        }
+        
+        return alert_data
+    
+    @staticmethod
     def generate_alerts(db: Session):
         """Generate alerts based on portfolio and technical conditions"""
         settings = get_settings()
@@ -186,21 +223,16 @@ class AlertService:
                     db.add(alert)
                     db.flush()  # Flush to get the alert ID
                     
-                    # Send Telegram notification
-                    alert_dict = {
-                        "title": alert.title,
-                        "stock_symbol": alert.stock_symbol,
-                        "alert_type": alert.alert_type,
-                        "current_price": alert.current_price,
-                        "trigger_price": alert.trigger_price,
-                        "description": alert.description
-                    }
-                    telegram_service.send_alert(
-                        f"<b>{alert.title}</b>\n\n"
-                        f"💵 Current Price: Rs. {current_price}\n"
-                        f"🎯 Trigger Price: Rs. {target_price:.2f}\n\n"
-                        f"{alert.description}"
-                    )
+                    # Prepare detailed alert data and send
+                    alert_data = AlertService.prepare_alert_data(db, stock, item)
+                    alert_data["title"] = alert.title
+                    alert_data["description"] = alert.description
+                    alert_data["trigger_price"] = target_price
+                    alert_data["alert_type"] = "sell_target"
+                    
+                    from app.services.notifications import NotificationManager
+                    message = NotificationManager.format_alert_message(alert_data)
+                    telegram_service.send_alert(message)
             
             # Buy dip alert
             if stock.recent_high:
@@ -225,14 +257,16 @@ class AlertService:
                         db.add(alert)
                         db.flush()
                         
-                        # Send Telegram notification
-                        telegram_service.send_alert(
-                            f"<b>{alert.title}</b>\n\n"
-                            f"💵 Current Price: Rs. {current_price}\n"
-                            f"📊 Recent High: Rs. {stock.recent_high:.2f}\n"
-                            f"⬇️ Dip Threshold: Rs. {dip_threshold:.2f}\n\n"
-                            f"{alert.description}"
-                        )
+                        # Prepare detailed alert data and send
+                        alert_data = AlertService.prepare_alert_data(db, stock, item)
+                        alert_data["title"] = alert.title
+                        alert_data["description"] = alert.description
+                        alert_data["trigger_price"] = dip_threshold
+                        alert_data["alert_type"] = "buy_dip"
+                        
+                        from app.services.notifications import NotificationManager
+                        message = NotificationManager.format_alert_message(alert_data)
+                        telegram_service.send_alert(message)
             
             # Stop loss alert
             if item.stop_loss_percentage:
@@ -257,13 +291,16 @@ class AlertService:
                         db.add(alert)
                         db.flush()
                         
-                        # Send Telegram notification
-                        telegram_service.send_alert(
-                            f"<b>{alert.title}</b>\n\n"
-                            f"💵 Current Price: Rs. {current_price}\n"
-                            f"🛑 Stop Loss Price: Rs. {stop_loss_price:.2f}\n\n"
-                            f"{alert.description}"
-                        )
+                        # Prepare detailed alert data and send
+                        alert_data = AlertService.prepare_alert_data(db, stock, item)
+                        alert_data["title"] = alert.title
+                        alert_data["description"] = alert.description
+                        alert_data["trigger_price"] = stop_loss_price
+                        alert_data["alert_type"] = "stop_loss"
+                        
+                        from app.services.notifications import NotificationManager
+                        message = NotificationManager.format_alert_message(alert_data)
+                        telegram_service.send_alert(message)
             
             # RSI signals
             if stock.rsi:
@@ -287,13 +324,16 @@ class AlertService:
                         db.add(alert)
                         db.flush()
                         
-                        # Send Telegram notification
-                        telegram_service.send_alert(
-                            f"<b>{alert.title}</b>\n\n"
-                            f"📊 RSI: {stock.rsi:.2f}\n"
-                            f"💵 Current Price: Rs. {current_price}\n\n"
-                            f"{alert.description}"
-                        )
+                        # Prepare detailed alert data and send
+                        alert_data = AlertService.prepare_alert_data(db, stock, item)
+                        alert_data["title"] = alert.title
+                        alert_data["description"] = alert.description
+                        alert_data["trigger_price"] = current_price
+                        alert_data["alert_type"] = "rsi_signal"
+                        
+                        from app.services.notifications import NotificationManager
+                        message = NotificationManager.format_alert_message(alert_data)
+                        telegram_service.send_alert(message)
         
         db.commit()
     
