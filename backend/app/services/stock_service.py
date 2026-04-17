@@ -4,8 +4,12 @@ Services for stock data and price management
 from sqlalchemy.orm import Session
 from app.models import Stock, Portfolio, PriceHistory, Alert
 from app.services.technical_analysis import TechnicalAnalysisService
+from app.services.notifications import TelegramNotificationService
+from app.config import get_settings
 from datetime import datetime, timedelta
-import random
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class StockService:
@@ -144,6 +148,12 @@ class AlertService:
     @staticmethod
     def generate_alerts(db: Session):
         """Generate alerts based on portfolio and technical conditions"""
+        settings = get_settings()
+        telegram_service = TelegramNotificationService(
+            bot_token=settings.TELEGRAM_BOT_TOKEN,
+            chat_id=settings.TELEGRAM_CHAT_ID
+        )
+        
         portfolio_items = db.query(Portfolio).filter(Portfolio.is_sold == 0).all()
         
         for item in portfolio_items:
@@ -174,6 +184,23 @@ class AlertService:
                         is_active=1
                     )
                     db.add(alert)
+                    db.flush()  # Flush to get the alert ID
+                    
+                    # Send Telegram notification
+                    alert_dict = {
+                        "title": alert.title,
+                        "stock_symbol": alert.stock_symbol,
+                        "alert_type": alert.alert_type,
+                        "current_price": alert.current_price,
+                        "trigger_price": alert.trigger_price,
+                        "description": alert.description
+                    }
+                    telegram_service.send_alert(
+                        f"<b>{alert.title}</b>\n\n"
+                        f"💵 Current Price: Rs. {current_price}\n"
+                        f"🎯 Trigger Price: Rs. {target_price:.2f}\n\n"
+                        f"{alert.description}"
+                    )
             
             # Buy dip alert
             if stock.recent_high:
@@ -196,6 +223,16 @@ class AlertService:
                             is_active=1
                         )
                         db.add(alert)
+                        db.flush()
+                        
+                        # Send Telegram notification
+                        telegram_service.send_alert(
+                            f"<b>{alert.title}</b>\n\n"
+                            f"💵 Current Price: Rs. {current_price}\n"
+                            f"📊 Recent High: Rs. {stock.recent_high:.2f}\n"
+                            f"⬇️ Dip Threshold: Rs. {dip_threshold:.2f}\n\n"
+                            f"{alert.description}"
+                        )
             
             # Stop loss alert
             if item.stop_loss_percentage:
@@ -218,6 +255,15 @@ class AlertService:
                             is_active=1
                         )
                         db.add(alert)
+                        db.flush()
+                        
+                        # Send Telegram notification
+                        telegram_service.send_alert(
+                            f"<b>{alert.title}</b>\n\n"
+                            f"💵 Current Price: Rs. {current_price}\n"
+                            f"🛑 Stop Loss Price: Rs. {stop_loss_price:.2f}\n\n"
+                            f"{alert.description}"
+                        )
             
             # RSI signals
             if stock.rsi:
@@ -239,6 +285,15 @@ class AlertService:
                             is_active=1
                         )
                         db.add(alert)
+                        db.flush()
+                        
+                        # Send Telegram notification
+                        telegram_service.send_alert(
+                            f"<b>{alert.title}</b>\n\n"
+                            f"📊 RSI: {stock.rsi:.2f}\n"
+                            f"💵 Current Price: Rs. {current_price}\n\n"
+                            f"{alert.description}"
+                        )
         
         db.commit()
     

@@ -134,6 +134,9 @@ class DashboardSummary(BaseModel):
     total_profit_loss_percentage: float
     portfolio_count: int
     active_alerts_count: int
-    top_stocks: list = []
-    recent_alerts: list = []
-    portfolio_items: list = []
+    top_stocks: list[StockResponse] = []
+    recent_alerts: list[AlertResponse] = []
+    portfolio_items: list[PortfolioResponse] = []
+    
+    class Config:
+        from_attributes = True

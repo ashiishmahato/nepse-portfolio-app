@@ -1,7 +1,11 @@
 """
 Notification service for sending alerts via email and Telegram
-Future implementation
 """
+import requests
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class EmailNotificationService:
     """Service for sending email alerts"""
@@ -29,11 +33,28 @@ class TelegramNotificationService:
     
     def send_alert(self, message):
         """Send Telegram alert"""
-        # TODO: Implement Telegram sending
-        # import requests
-        # url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
-        # requests.post(url, json={"chat_id": self.chat_id, "text": message})
-        pass
+        if not self.bot_token or not self.chat_id:
+            logger.warning("Telegram credentials not configured, skipping notification")
+            return False
+        
+        try:
+            url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+            payload = {
+                "chat_id": self.chat_id,
+                "text": message,
+                "parse_mode": "HTML"
+            }
+            response = requests.post(url, json=payload, timeout=10)
+            
+            if response.status_code == 200:
+                logger.info(f"Telegram alert sent successfully: {message[:50]}...")
+                return True
+            else:
+                logger.error(f"Failed to send Telegram alert: {response.text}")
+                return False
+        except Exception as e:
+            logger.error(f"Error sending Telegram alert: {str(e)}")
+            return False
 
 
 class NotificationManager:
@@ -47,18 +68,20 @@ class NotificationManager:
         """Send alert through configured channels"""
         
         message = f"""
-        {alert['title']}
-        
-        Stock: {alert['stock_symbol']}
-        Type: {alert['alert_type']}
-        Current Price: {alert['current_price']}
-        Trigger Price: {alert['trigger_price']}
-        
-        {alert['description']}
+<b>{alert.get('title', 'Alert')}</b>
+
+📈 <b>Stock:</b> {alert.get('stock_symbol', 'N/A')}
+🏷️ <b>Type:</b> {alert.get('alert_type', 'N/A')}
+💵 <b>Current Price:</b> Rs. {alert.get('current_price', 'N/A')}
+🎯 <b>Trigger Price:</b> Rs. {alert.get('trigger_price', 'N/A')}
+
+{alert.get('description', '')}
         """
         
         if send_email and self.email_service:
             self.email_service.send_alert("user@example.com", alert['title'], message)
         
         if send_telegram and self.telegram_service:
-            self.telegram_service.send_alert(message)
+            return self.telegram_service.send_alert(message)
+        
+        return True
