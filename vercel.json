@@ -1,8 +1,8 @@
 {
-  "buildCommand": "cd frontend && npm ci && npm run build",
+  "buildCommand": "cd frontend && npm ci --no-workspaces && npm run build",
   "outputDirectory": "frontend/dist",
   "framework": null,
-  "installCommand": "cd frontend && npm ci",
+  "installCommand": "cd frontend && npm ci --no-workspaces",
   "routes": [
     {
       "src": "/api/(.*)",
